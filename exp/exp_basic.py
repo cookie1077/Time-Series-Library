@@ -26,9 +26,9 @@ class Exp_Basic(object):
             'FiLM': FiLM,
             'iTransformer': iTransformer,
             'Koopa': Koopa,
+            'Mamba': Mamba,
             'TiDE': TiDE,
             'FreTS': FreTS,
-            'Mamba': Mamba,
             'TimeMixer': TimeMixer,
             'TSMixer': TSMixer,
             'SegRNN': SegRNN
