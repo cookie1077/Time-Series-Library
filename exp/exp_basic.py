@@ -28,7 +28,6 @@ class Exp_Basic(object):
             'Koopa': Koopa,
             'TiDE': TiDE,
             'FreTS': FreTS,
-            'MambaSimple': MambaSimple,
             'Mamba': Mamba,
             'TimeMixer': TimeMixer,
             'TSMixer': TSMixer,
