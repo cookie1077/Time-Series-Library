@@ -11,9 +11,9 @@ python -u run.py \
   --model $model_name \
   --data SNU \
   --features MS \
-  --seq_len 10 \
+  --seq_len 30 \
   --label_len 0 \
-  --pred_len 10 \
+  --pred_len 30 \
   --e_layers 2 \
   --d_layers 1 \
   --embed 'fixed' \

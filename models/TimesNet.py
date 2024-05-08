@@ -92,7 +92,11 @@ class Model(nn.Module):
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
             self.ReLU = nn.ReLU()
-            self.transform = nn.Linear(configs.c_out, 1, bias=True)
+            #self.transform = nn.Linear(self.pred_len + self.seq_len, 1, bias=True)
+
+            self.fc1 = torch.nn.Linear(self.pred_len + self.seq_len, 20, bias=True)
+            self.fc2 = torch.nn.Linear(20, 30, bias=True)
+            self.fc3 = torch.nn.Linear(30, configs.c_out, bias=True)
             
         if self.task_name == 'imputation' or self.task_name == 'anomaly_detection':
             self.projection = nn.Linear(
@@ -117,13 +121,23 @@ class Model(nn.Module):
             0, 2, 1)  # align temporal dimension
         # TimesNet
         for i in range(self.layer):
-            enc_out = self.layer_norm(self.model[i](enc_out))
-        # project back
-        dec_out = self.projection(enc_out)
-        dec_out = self.ReLU(dec_out)
-        dec_out = self.transform(dec_out)
+            enc_out = self.layer_norm(self.model[i](enc_out)) 
+        # project back 
+        # print("the size of enc is", enc_out.shape)
+        dec_out = self.projection(enc_out) 
+        
+        # print("the size before transform is", dec_out.shape)  
+        dec_out = self.ReLU(dec_out.squeeze(-1))
+        x = self.fc1(dec_out)
+        x = self.ReLU(x)
+        x = self.fc2(x)
+        x = self.ReLU(x)
+        dec_out = self.fc3(x)
 
-        print("the size before output is", dec_out.shape)
+        # print("the actual size before transform is", dec_out.shape) 
+        #dec_out = self.transform(dec_out)
+
+        # print("the size before output is", dec_out.shape)
 
         """
         # De-Normalization from Non-stationary Transformer
@@ -210,7 +224,8 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            #return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            return dec_out
         if self.task_name == 'imputation':
             dec_out = self.imputation(
                 x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
