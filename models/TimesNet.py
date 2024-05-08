@@ -91,6 +91,9 @@ class Model(nn.Module):
                 self.seq_len, self.pred_len + self.seq_len)
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
+            self.ReLU = nn.ReLU()
+            self.transform = nn.Linear(configs.c_out, 1, bias=True)
+            
         if self.task_name == 'imputation' or self.task_name == 'anomaly_detection':
             self.projection = nn.Linear(
                 configs.d_model, configs.c_out, bias=True)
@@ -115,9 +118,14 @@ class Model(nn.Module):
         # TimesNet
         for i in range(self.layer):
             enc_out = self.layer_norm(self.model[i](enc_out))
-        # porject back
+        # project back
         dec_out = self.projection(enc_out)
+        dec_out = self.ReLU(dec_out)
+        dec_out = self.transform(dec_out)
 
+        print("the size before output is", dec_out.shape)
+
+        """
         # De-Normalization from Non-stationary Transformer
         dec_out = dec_out * \
                   (stdev[:, 0, :].unsqueeze(1).repeat(
@@ -125,6 +133,7 @@ class Model(nn.Module):
         dec_out = dec_out + \
                   (means[:, 0, :].unsqueeze(1).repeat(
                       1, self.pred_len + self.seq_len, 1))
+        """
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):

@@ -4,17 +4,208 @@ import pandas as pd
 import glob
 import re
 import torch
+import random
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from utils.timefeatures import time_features
 from data_provider.m4 import M4Dataset, M4Meta
 from data_provider.uea import subsample, interpolate_missing, Normalizer
 from sktime.datasets import load_from_tsfile_to_dataframe
+from sklearn.model_selection import train_test_split
 import warnings
 from utils.augmentation import run_augmentation_single
 
 warnings.filterwarnings('ignore')
 
+class Dataset_SNU(Dataset):
+    def __init__(self, args, root_path, flag='train', size=None,
+                 features='S', data_path='',
+                 target='OT', scale=True, timeenc=0, freq='d', seasonal_patterns=None):
+        # size [seq_len, label_len, pred_len]
+        self.args = args
+        random.seed(1000)
+        # info
+        if size == None:
+            self.seq_len = 10
+            self.label_len = 5
+            self.pred_len = 10
+        else:
+            self.seq_len = size[0]
+            self.label_len = size[1]
+            self.pred_len = size[2]
+        # init
+        assert flag in ['train', 'test', 'val']
+        type_map = {'train': 0, 'val': 1, 'test': 2}
+        self.set_type = type_map[flag]
+
+        self.features = features
+        self.target = target
+        self.scale = scale
+        self.timeenc = timeenc
+        self.freq = freq
+
+        self.root_path = root_path
+        self.data_path = data_path
+        self.__read_data__()
+
+    def select_features(self, data):
+
+        # x = data[:, :-1]  # [V_i - V_10, A_i - A_10, C_i]
+        # x = torch.hstack((data[:, 0].reshape(-1, 1), data[:, 2].reshape(-1, 1))) # [V_i - V_10, C_i]
+        x = torch.hstack((data[:, 0].reshape(-1, 1), data[:, 4].reshape(-1, 1), data[:, 5].reshape(-1, 1)))
+        y = data[:, -1][:, None] 
+    
+        return x, y 
+    
+    def build_dataset(self, data_x, data_y, seq_length):
+        data_out_x = []
+        data_out_y = []
+    
+        for i in range(0, len(data_x) - seq_length):
+            _x = data_x[i:i + seq_length, :]
+            data_out_x.append(_x)
+    
+        for i in range(0, len(data_y) - seq_length):
+            _y = data_y[i+seq_length, :]
+            data_out_y.append(_y)
+    
+        data_out_x = np.array(data_out_x)
+        data_out_x = torch.FloatTensor(data_out_x)
+        #data_out_x = data_out_x.to(self.device)
+    
+        data_out_y = np.array(data_out_y)
+        data_out_y = torch.FloatTensor(data_out_y)
+        #data_out_y = data_out_y.to(self.device)
+    
+        return data_out_x, data_out_y
+        
+    def __read_data__(self):
+        self.scaler = StandardScaler()
+        rul_factor = 600
+        
+        # Split the numbers into training and testing sets
+        numbers = list(range(1, 49))
+        train, test = train_test_split(numbers, test_size=0.2, random_state=42)
+    
+        # train or val set 
+        if True :
+            x_whole = torch.empty((0, self.seq_len, self.args.enc_in))
+            x_scale = torch.empty((0, self.args.enc_in))
+            y_whole = torch.empty((0, self.args.c_out))
+            
+            for i in train:
+                try:
+                    # Attempt to load the data
+                    if i<10 : 
+                        i = str("0") + str(i)
+                    else: i = str(i)
+                        
+                    data_name_n = f'dataset_snu_cell_{i}_n' 
+                    data_n = torch.load(os.path.join(self.root_path, self.data_path) + data_name_n)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_n)
+                    x_scale = torch.cat((x_scale, x), dim=0)
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    print(f'dataset{data_name_n}is not found')
+                    pass
+
+                try:    
+                    data_name_f = f'dataset_snu_cell_{i}_f' 
+                    data_f = torch.load(os.path.join(self.root_path, self.data_path) + data_name_f)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_f)
+                    x_scale = torch.cat((x_scale, x), dim=0)
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    print(f'dataset{data_name_f}is not found')
+                    pass
+                    
+        if self.set_type == 2 :
+            x_whole = torch.empty((0, self.seq_len, self.args.enc_in))
+            y_whole = torch.empty((0, self.args.c_out))
+            
+            for i in test:
+                try:
+                    # Attempt to load the data
+                    data_name_n = f'dataset_snu_cell_{i}_n' 
+                    data_n = torch.load(os.path.join(self.root_path, self.data_path) + data_name_n)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_n)
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    pass
+
+                try:
+                    # Attempt to load the data
+                    data_name_f = f'dataset_snu_cell_{i}_f' 
+                    data_f = torch.load(os.path.join(self.root_path, self.data_path) + data_name_f)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_f) 
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    pass
+                
+        # scale the data, with scaler fitted to train data
+        if self.scale:
+            self.scaler.fit(x_scale)
+            normalized_data = torch.empty(x_whole.shape)
+            for i in range(x_whole.shape[0]):
+                normalized_data[i] = torch.Tensor(self.scaler.transform(x_whole[i]))
+            x_whole = normalized_data
+
+        self.data_x = x_whole
+        self.data_y = y_whole
+
+        # define timestep. (we need to transform this into 4dim)
+
+        data_stamp_x = torch.empty((x_whole.shape[0], self.seq_len, 4))
+        data_stamp_y = torch.empty((x_whole.shape[0], 4))
+
+        for i in range(x_whole.shape[0]):
+            data_stamp_x[i] = torch.Tensor(time_features(pd.to_datetime(x_whole[0, :, 0], unit='D'), freq=self.freq).transpose(1,0))
+            data_stamp_y[i] = torch.Tensor(time_features(pd.to_datetime(x_whole[0, :, 0][-1]+1, unit='D'), freq=self.freq).transpose(1,0))
+            
+        self.data_stamp_x = data_stamp_x
+        self.data_stamp_y = data_stamp_y
+
+    def __getitem__(self, index):
+        seq_x = self.data_x[index]
+        seq_y = self.data_y[index]
+        seq_x_mark = self.data_stamp_x[index]
+        seq_y_mark = self.data_stamp_y[index]
+
+        return seq_x, seq_y, seq_x_mark, seq_y_mark
+
+    def __len__(self):
+        return self.data_x.shape[0]
+
+    def inverse_transform(self, data):
+        return self.scaler.inverse_transform(data)
 
 class Dataset_ETT_hour(Dataset):
     def __init__(self, args, root_path, flag='train', size=None,
@@ -100,6 +291,10 @@ class Dataset_ETT_hour(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
+        print(seq_x.shape, "is the shape of x")
+        print(seq_y.shape, "is the shape of y")
+        print(seq_x_mark.shape, "is the shape of xmark")
+        print(seq_y_mark.shape, "is the shape of ymark")
         return seq_x, seq_y, seq_x_mark, seq_y_mark
 
     def __len__(self):
