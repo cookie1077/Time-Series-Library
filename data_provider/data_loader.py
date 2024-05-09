@@ -85,7 +85,8 @@ class Dataset_SNU(Dataset):
         
         # Split the numbers into training and testing sets
         numbers = list(range(1, 49))
-        train, test = train_test_split(numbers, test_size=0.2, random_state=42)
+        train, temp = train_test_split(numbers, test_size=0.1, random_state=42)
+        test, val = train_test_split(temp, test_size=0.5, random_state=42)
     
         # train or val set 
         if True :
@@ -113,7 +114,7 @@ class Dataset_SNU(Dataset):
                     y_whole = torch.cat((y_whole, train_y), dim=0)
                     
                 except FileNotFoundError:
-                    print(f'dataset{data_name_n}is not found')
+                    #print(f'dataset{data_name_n}is not found')
                     pass
 
                 try:    
@@ -130,7 +131,7 @@ class Dataset_SNU(Dataset):
                     y_whole = torch.cat((y_whole, train_y), dim=0)
                     
                 except FileNotFoundError:
-                    print(f'dataset{data_name_f}is not found')
+                    #print(f'dataset{data_name_f}is not found')
                     pass
                     
         if self.set_type == 2 :
@@ -138,6 +139,43 @@ class Dataset_SNU(Dataset):
             y_whole = torch.empty((0, self.args.c_out))
             
             for i in test:
+                try:
+                    # Attempt to load the data
+                    data_name_n = f'dataset_snu_cell_{i}_n' 
+                    data_n = torch.load(os.path.join(self.root_path, self.data_path) + data_name_n)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_n)
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    pass
+
+                try:
+                    # Attempt to load the data
+                    data_name_f = f'dataset_snu_cell_{i}_f' 
+                    data_f = torch.load(os.path.join(self.root_path, self.data_path) + data_name_f)
+
+                    # read and select columns and output column. add data_num for normal
+                    x, y = self.select_features(data_f) 
+                    y = y / rul_factor
+        
+                    train_x, train_y = self.build_dataset(x.detach().numpy(), y.detach().numpy(), self.seq_len)
+                    x_whole = torch.cat((x_whole, train_x), dim=0)
+                    y_whole = torch.cat((y_whole, train_y), dim=0)
+                    
+                except FileNotFoundError:
+                    pass
+
+        elif self.set_type == 1 :
+            x_whole = torch.empty((0, self.seq_len, self.args.enc_in))
+            y_whole = torch.empty((0, self.args.c_out))
+            
+            for i in val:
                 try:
                     # Attempt to load the data
                     data_name_n = f'dataset_snu_cell_{i}_n' 
