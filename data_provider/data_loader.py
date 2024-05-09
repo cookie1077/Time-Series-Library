@@ -50,9 +50,12 @@ class Dataset_SNU(Dataset):
 
     def select_features(self, data):
 
+        feature_list = [int(i) for i in self.args.select_features.split(" ")]
+        features = tuple([data[:, i].reshape(-1,1) for i in feature_list])
+
         # x = data[:, :-1]  # [V_i - V_10, A_i - A_10, C_i]
         # x = torch.hstack((data[:, 0].reshape(-1, 1), data[:, 2].reshape(-1, 1))) # [V_i - V_10, C_i]
-        x = torch.hstack((data[:, 0].reshape(-1, 1), data[:, 4].reshape(-1, 1), data[:, 5].reshape(-1, 1)))
+        x = torch.hstack(features)
         y = data[:, -1][:, None] 
     
         return x, y 

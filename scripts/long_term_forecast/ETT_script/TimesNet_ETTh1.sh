@@ -1,7 +1,7 @@
 #export CUDA_VISIBLE_DEVICES=2
 
-model_name=TimesNet
-#model_name=GRU
+#model_name=TimesNet
+model_name=GRU
 
 python -u run.py \
   --task_name long_term_forecast \
