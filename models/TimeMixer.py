@@ -355,6 +355,8 @@ class Model(nn.Module):
 
         dec_out = torch.stack(dec_out_list, dim=-1).sum(-1)
         dec_out = self.normalize_layers[0](dec_out, 'denorm')
+        print(dec_out.shape, "is the shape")
+        
         return dec_out
 
     def future_multi_mixing(self, B, enc_out_list, x_list):

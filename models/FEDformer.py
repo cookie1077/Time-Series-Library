@@ -37,6 +37,13 @@ class Model(nn.Module):
         self.dec_embedding = DataEmbedding(configs.dec_in, configs.d_model, configs.embed, configs.freq,
                                            configs.dropout)
 
+        # Decomposition Modules
+        self.ReLU = nn.ReLU()
+        self.fc0 = torch.nn.Linear(configs.enc_in, configs.c_out, bias=True)
+        self.fc1 = torch.nn.Linear(self.pred_len+self.seq_len, 128, bias=True)
+        self.fc2 = torch.nn.Linear(128, 64, bias=True)
+        self.fc3 = torch.nn.Linear(64, configs.c_out, bias=True)
+
         if self.version == 'Wavelets':
             encoder_self_att = MultiWaveletTransform(ich=configs.d_model, L=1, base='legendre')
             decoder_self_att = MultiWaveletTransform(ich=configs.d_model, L=1, base='legendre')
@@ -129,6 +136,17 @@ class Model(nn.Module):
         seasonal_part, trend_part = self.decoder(dec_out, enc_out, x_mask=None, cross_mask=None, trend=trend_init)
         # final
         dec_out = trend_part + seasonal_part
+
+        dec_out = self.ReLU(dec_out)
+
+        x = self.fc0(dec_out)
+        x = self.ReLU(x)
+        x = self.fc1(x.squeeze(-1))
+        x = self.ReLU(x)
+        x = self.fc2(x)
+        x = self.ReLU(x)
+        dec_out = self.fc3(x)
+        
         return dec_out
 
     def imputation(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask):
@@ -163,7 +181,8 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc, x_mark_enc, x_dec, x_mark_dec)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            return dec_out
+            #return dec_out[:, -self.pred_len:, :]  # [B, L, D]
         if self.task_name == 'imputation':
             dec_out = self.imputation(x_enc, x_mark_enc, x_dec, x_mark_dec, mask)
             return dec_out  # [B, L, D]

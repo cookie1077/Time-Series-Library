@@ -1,9 +1,9 @@
-#export CUDA_VISIBLE_DEVICES=2
+# export CUDA_VISIBLE_DEVICES=2
 
 model_name=GRU
 #feature_list='0 4 10 11'
 feature_num=4
-  
+
 python -u run.py \
   --task_name long_term_forecast \
   --is_training 1 \

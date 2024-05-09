@@ -232,7 +232,7 @@ class Dataset_SNU(Dataset):
             data_stamp_y[i] = torch.Tensor(time_features(pd.to_datetime(x_whole[0, :, 0][-1]+1, unit='D'), freq=self.freq).transpose(1,0))
             
         self.data_stamp_x = data_stamp_x
-        self.data_stamp_y = data_stamp_y
+        self.data_stamp_y = data_stamp_y.unsqueeze(1)
 
     def __getitem__(self, index):
         seq_x = self.data_x[index]

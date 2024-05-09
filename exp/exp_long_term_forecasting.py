@@ -147,7 +147,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     #batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
                     batch_y = batch_y.to(self.device) 
 
-                    #print(outputs.shape, "is the shape")
+                    #print(outputs.shape, "is the shape of results")
                     #print(batch_y.shape, "is the shape of y")
                     loss = criterion(outputs, batch_y)
 

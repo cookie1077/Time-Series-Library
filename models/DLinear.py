@@ -25,6 +25,13 @@ class Model(nn.Module):
         self.individual = individual
         self.channels = configs.enc_in
 
+        # Decomposition Modules
+        self.ReLU = nn.ReLU()
+        self.fc0 = torch.nn.Linear(configs.enc_in, configs.c_out, bias=True)
+        self.fc1 = torch.nn.Linear(self.pred_len, 128, bias=True)
+        self.fc2 = torch.nn.Linear(128, 64, bias=True)
+        self.fc3 = torch.nn.Linear(64, configs.c_out, bias=True)
+
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -72,7 +79,20 @@ class Model(nn.Module):
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
         x = seasonal_output + trend_output
-        return x.permute(0, 2, 1)
+
+        dec_out = x.permute(0,2,1)
+        dec_out = self.ReLU(dec_out)
+
+        x = self.fc0(dec_out)
+        x = self.ReLU(x)
+        
+        x = self.fc1(x.squeeze(-1))
+        x = self.ReLU(x)
+        x = self.fc2(x)
+        x = self.ReLU(x)
+        dec_out = self.fc3(x)
+        
+        return dec_out
 
     def forecast(self, x_enc):
         # Encoder
@@ -99,7 +119,8 @@ class Model(nn.Module):
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name == 'long_term_forecast' or self.task_name == 'short_term_forecast':
             dec_out = self.forecast(x_enc)
-            return dec_out[:, -self.pred_len:, :]  # [B, L, D]
+            return dec_out
+            #return dec_out[:, -self.pred_len:, :]  # [B, L, D]
         if self.task_name == 'imputation':
             dec_out = self.imputation(x_enc)
             return dec_out  # [B, L, D]

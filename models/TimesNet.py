@@ -78,7 +78,7 @@ class Model(nn.Module):
         self.configs = configs
         self.task_name = configs.task_name
         self.seq_len = configs.seq_len
-        self.label_len = configs.label_len
+        self.label_len = configs.label_len 
         self.pred_len = configs.pred_len
         self.model = nn.ModuleList([TimesBlock(configs)
                                     for _ in range(configs.e_layers)])
@@ -94,9 +94,9 @@ class Model(nn.Module):
             self.ReLU = nn.ReLU()
             #self.transform = nn.Linear(self.pred_len + self.seq_len, 1, bias=True)
 
-            self.fc1 = torch.nn.Linear(self.pred_len + self.seq_len, 20, bias=True)
-            self.fc2 = torch.nn.Linear(20, 30, bias=True)
-            self.fc3 = torch.nn.Linear(30, configs.c_out, bias=True)
+            self.fc1 = torch.nn.Linear(self.pred_len + self.seq_len, 128, bias=True)
+            self.fc2 = torch.nn.Linear(128, 64, bias=True)
+            self.fc3 = torch.nn.Linear(64, configs.c_out, bias=True)
             
         if self.task_name == 'imputation' or self.task_name == 'anomaly_detection':
             self.projection = nn.Linear(
@@ -128,7 +128,7 @@ class Model(nn.Module):
         # print("the size of enc is", enc_out.shape)
         dec_out = self.projection(enc_out) 
         
-        # print("the size before transform is", dec_out.shape)  
+        print("the size before transform is", dec_out.shape)  
         dec_out = self.ReLU(dec_out.squeeze(-1))
         x = self.fc1(dec_out)
         x = self.ReLU(x)
