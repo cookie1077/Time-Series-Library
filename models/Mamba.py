@@ -20,6 +20,13 @@ class Model(nn.Module):
         
         self.embedding = DataEmbedding(configs.enc_in, configs.d_model, configs.embed, configs.freq, configs.dropout)
 
+        # Decomposition Modules
+        self.ReLU = nn.ReLU()
+        self.fc0 = torch.nn.Linear(configs.enc_in, configs.c_out, bias=True)
+        self.fc1 = torch.nn.Linear(self.pred_len, 128, bias=True)
+        self.fc2 = torch.nn.Linear(128, 64, bias=True)
+        self.fc3 = torch.nn.Linear(64, configs.c_out, bias=True)
+
         self.mamba = Mamba(
             d_model = configs.d_model,
             d_state = configs.d_ff,
@@ -40,11 +47,25 @@ class Model(nn.Module):
         x_out = self.out_layer(x)
 
         x_out = x_out * std_enc + mean_enc
+
+        dec_out = self.ReLU(x_out)
+
+        x = self.fc0(dec_out)
+        x = self.ReLU(x)
+        
+        x = self.fc1(x.squeeze(-1))
+        x = self.ReLU(x)
+        x = self.fc2(x)
+        x = self.ReLU(x)
+        x_out = self.fc3(x)
+
+        #print(x_out.shape, "is the shape of x_out")
         return x_out
 
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, mask=None):
         if self.task_name in ['short_term_forecast', 'long_term_forecast']:
             x_out = self.forecast(x_enc, x_mark_enc)
-            return x_out[:, -self.pred_len:, :]
+            return x_out
+            #return x_out[:, -self.pred_len:, :]
 
         # other tasks not implemented

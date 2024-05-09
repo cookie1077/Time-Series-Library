@@ -74,6 +74,7 @@ class KPLayer(nn.Module):
 
     def one_step_forward(self, z, return_rec=False, return_K=False):
         B, input_len, E = z.shape
+
         assert input_len > 1, 'snapshots number should be larger than 1'
         x, y = z[:, :-1], z[:, 1:]
 
@@ -266,6 +267,13 @@ class Model(nn.Module):
 
         self.disentanglement = FourierFilter(self.mask_spectrum)
 
+        # Decomposition Modules
+        self.ReLU = nn.ReLU()
+        self.fc0 = torch.nn.Linear(configs.enc_in, configs.c_out, bias=True)
+        self.fc1 = torch.nn.Linear(self.pred_len, 128, bias=True)
+        self.fc2 = torch.nn.Linear(128, 64, bias=True)
+        self.fc3 = torch.nn.Linear(64, configs.c_out, bias=True)
+
         # shared encoder/decoder to make koopman embedding consistent
         self.time_inv_encoder = MLP(f_in=self.input_len, f_out=self.dynamic_dim, activation='relu',
                     hidden_dim=self.hidden_dim, hidden_layers=self.hidden_layers)
@@ -329,9 +337,23 @@ class Model(nn.Module):
         # Series Stationarization adopted from NSformer
         res = forecast * std_enc + mean_enc
 
-        return res        
+        #print(res.shape, "is the shape")
+
+        dec_out = self.ReLU(res)
+
+        x = self.fc0(dec_out)
+        x = self.ReLU(x)
+        
+        x = self.fc1(x.squeeze(-1))
+        x = self.ReLU(x)
+        x = self.fc2(x)
+        x = self.ReLU(x)
+        dec_out = self.fc3(x)
+
+        return dec_out        
     
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
         if self.task_name == 'long_term_forecast':
             dec_out = self.forecast(x_enc)
-            return dec_out[:, -self.pred_len:, :] # [B, L, D]
+            return dec_out
+            #return dec_out[:, -self.pred_len:, :] # [B, L, D]

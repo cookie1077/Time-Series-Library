@@ -3,6 +3,7 @@ import torch.nn as nn
 from layers.Autoformer_EncDec import series_decomp
 from layers.Embed import DataEmbedding_wo_pos
 from layers.StandardNorm import Normalize
+import numpy as np
 
 
 class DFT_series_decomp(nn.Module):
@@ -298,7 +299,6 @@ class Model(nn.Module):
 
         for i in range(self.configs.down_sampling_layers):
             x_enc_sampling = down_pool(x_enc_ori)
-
             x_enc_sampling_list.append(x_enc_sampling.permute(0, 2, 1))
             x_enc_ori = x_enc_sampling
 
@@ -323,7 +323,9 @@ class Model(nn.Module):
                 x = self.normalize_layers[i](x, 'norm')
                 if self.channel_independence == 1:
                     x = x.permute(0, 2, 1).contiguous().reshape(B * N, T, 1)
+        
                 x_list.append(x)
+               
                 x_mark = x_mark.repeat(N, 1, 1)
                 x_mark_list.append(x_mark)
         else:
@@ -333,12 +335,13 @@ class Model(nn.Module):
                 if self.channel_independence == 1:
                     x = x.permute(0, 2, 1).contiguous().reshape(B * N, T, 1)
                 x_list.append(x)
-
+    
         # embedding
         enc_out_list = []
         x_list = self.pre_enc(x_list)
         if x_mark_enc is not None:
             for i, x, x_mark in zip(range(len(x_list[0])), x_list[0], x_mark_list):
+                if x.shape != x_mark.shape: continue
                 enc_out = self.enc_embedding(x, x_mark)  # [B,T,C]
                 enc_out_list.append(enc_out)
         else:
