@@ -88,8 +88,8 @@ class Dataset_SNU(Dataset):
         
         # Split the numbers into training and testing sets
         numbers = list(range(1, 49))
-        train, temp = train_test_split(numbers, test_size=0.1, random_state=42)
-        test, val = train_test_split(temp, test_size=0.5, random_state=42)
+        train, temp = train_test_split(numbers, test_size=0.2, random_state=3)
+        test, val = train_test_split(temp, test_size=0.5, random_state=3)
     
         # train or val set 
         if True :

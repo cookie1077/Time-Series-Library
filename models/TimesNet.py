@@ -128,7 +128,7 @@ class Model(nn.Module):
         # print("the size of enc is", enc_out.shape)
         dec_out = self.projection(enc_out) 
         
-        print("the size before transform is", dec_out.shape)  
+        #print("the size before transform is", dec_out.shape)  
         dec_out = self.ReLU(dec_out.squeeze(-1))
         x = self.fc1(dec_out)
         x = self.ReLU(x)
